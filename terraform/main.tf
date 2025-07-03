@@ -22,9 +22,6 @@ provider "google" {
   region  = var.region
 }
 
-# Get project data for service account
-data "google_project" "project" {}
-
 # Enable required APIs
 resource "google_project_service" "cloud_run" {
   count   = var.discord_bot_token != "" ? 1 : 0
