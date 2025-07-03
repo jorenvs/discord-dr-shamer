@@ -21,7 +21,6 @@ RUN uv pip install --system -r requirements.txt
 
 # Copy application files
 COPY bot.py .
-COPY .env* ./
 
 # Run the bot
 CMD ["python", "bot.py"] 
