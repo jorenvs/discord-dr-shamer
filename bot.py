@@ -23,14 +23,16 @@ wish_timestamp = None
 # Configuration - Map server IDs to role IDs
 SHAME_ROLE_CONFIG = {
     168316445569056768: 1390320164024881192,  # London server: dunce role
-    1390289538613772400: 1390319545243402370 # JJ's test server
+    1390289538613772400: 1390319545243402370, # JJ's test server
+    1343509963812769832: 1390424931388362874, # The Post Office
     # Add more servers as needed
 }
 
 # Configuration - Map server IDs to dev channel names
 DEV_CHANNEL_CONFIG = {
     168316445569056768: "pkl-dev",        # London server
-    1390289538613772400: "dr-shamer-dev"  # JJ's test server
+    1390289538613772400: "dr-shamer-dev",  # JJ's test server
+    1343509963812769832: "dr-shamer-dev",  # The Post Office
     # Add more servers as needed
 }
 
