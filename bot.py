@@ -149,8 +149,6 @@ async def on_reaction_add(reaction, user):
     if reaction.message.id != last_wish_message_id or str(reaction.emoji) != "🌠":
         return
 
-    now = datetime.now(pytz.timezone('Europe/London'))
-
     # Check if the wish was made at 11:11 AM London time
     if wish_timestamp:
         # Convert wish_timestamp to London time (in case it was stored differently)
