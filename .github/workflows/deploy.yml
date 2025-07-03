@@ -1,0 +1,92 @@
+name: Build and Deploy Discord Bot
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  PROJECT_ID: ldn-discord-dr-shamer
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev
+  IMAGE_NAME: dr-shamer
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Get full history for version incrementing
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+    - name: Generate semantic version
+      id: version
+      uses: paulhatch/semantic-version@v5.4.0
+      with:
+        tag_prefix: "v"
+        major_pattern: "BREAKING CHANGE:"
+        minor_pattern: "feat:"
+        version_format: "${major}.${minor}.${patch}"
+        bump_each_commit: true
+        search_commit_body: true
+        
+    - name: Set version environment variables
+      run: |
+        NEW_VERSION="v${{ steps.version.outputs.version }}"
+        
+        # Set environment variables for subsequent steps
+        echo "BOT_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+        echo "DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/discord-bot/${{ env.IMAGE_NAME }}:$NEW_VERSION" >> $GITHUB_ENV
+        
+        echo "Generated version: $NEW_VERSION"
+
+    - name: Build Docker image
+      run: |
+        docker build --platform linux/amd64 -t ${{ env.DOCKER_IMAGE }} .
+
+    - name: Push Docker image
+      run: |
+        docker push ${{ env.DOCKER_IMAGE }}
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.0
+
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init
+
+    - name: Terraform Apply
+      run: |
+        cd terraform
+        terraform apply -auto-approve \
+          -var="bot_version=${{ env.BOT_VERSION }}" \
+          -var="discord_bot_token=${{ secrets.DISCORD_BOT_TOKEN }}"
+
+    - name: Create Git tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Create and push git tag
+        git tag ${{ env.BOT_VERSION }}
+        git push --tags 

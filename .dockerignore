@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Terraform
+terraform/
+*.tf
+*.tfvars
+
+# Scripts
+build_docker.sh
+deploy.sh
+
+# Version control
+VERSION
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Docker
+Dockerfile
+.dockerignore 

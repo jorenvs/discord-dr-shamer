@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 import pytz
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import os
 from dotenv import load_dotenv
@@ -163,6 +165,23 @@ async def on_reaction_add(reaction, user):
 
 
 
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'OK')
+    
+    def log_message(self, format, *args):
+        pass  # Suppress logs
+
+def start_health_server():
+    port = int(os.getenv('PORT', 8080))
+    HTTPServer(('', port), HealthCheckHandler).serve_forever()
+
 if __name__ == "__main__":
+    # Start health check server in background thread
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+    
     bot_token = os.getenv("DISCORD_BOT_TOKEN")
     bot.run(bot_token)

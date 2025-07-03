@@ -35,4 +35,13 @@ temp/
 *.sqlite
 
 # Backup files
-*.bak 
+*.bak
+
+# Archive folder (legacy deployment scripts)
+archive/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars.backup 
