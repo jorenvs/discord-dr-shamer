@@ -20,8 +20,7 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Configuration - Wish time (24-hour format HH:MM)
-#WISH_TIME = "11:11"
-WISH_TIME = "17:50"
+WISH_TIME = "11:11"
 
 # Configuration - Map server IDs to role IDs
 SHAME_ROLE_CONFIG = {
