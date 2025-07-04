@@ -19,9 +19,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Track wishes per server
-last_wish_message_id = {}  # guild_id -> message_id
-wish_timestamp = {}        # guild_id -> timestamp
+# Configuration - Wish time (24-hour format HH:MM)
+#WISH_TIME = "11:11"
+WISH_TIME = "17:50"
 
 # Configuration - Map server IDs to role IDs
 SHAME_ROLE_CONFIG = {
@@ -39,6 +39,14 @@ DEV_CHANNEL_CONFIG = {
     # Add more servers as needed
 }
 
+# Configuration - Debug mode per server (True = show debug messages)
+DEBUG_MODE_CONFIG = {
+    168316445569056768: False,  # London server - no debug
+    1390289538613772400: True,  # JJ's test server - debug on
+    1343509963812769832: True,  # The Post Office - debug on
+    # Add more servers as needed - default to True for new servers
+}
+
 GIF_URL = "https://tenor.com/view/shame-septa-got-westeros-walk-of-atonement-gif-3828987465249036403"
 
 def get_shame_role_id(guild_id):
@@ -52,9 +60,33 @@ def get_server_tag(guild):
     """Get server name tag for logging"""
     return f"[{guild.name}]" if guild else "[Unknown]"
 
+def is_debug_mode(guild_id):
+    """Check if debug mode is enabled for a server"""
+    return DEBUG_MODE_CONFIG.get(guild_id, True)  # Default to True for new servers
+
 def get_dev_channel_name(guild_id):
     """Get the appropriate dev channel name for a server"""
     return DEV_CHANNEL_CONFIG.get(guild_id, "pkl-dev")  # Default to pkl-dev
+
+def is_wish_message(message_content):
+    """Check if a message contains wish text"""
+    message_lower = message_content.lower().strip()
+    
+    # Accept various wish message formats
+    wish_variations = [
+        f"{WISH_TIME} make a wish 🌠",
+        f"{WISH_TIME} make a wish",
+        "make a wish 🌠",
+        "make a wish",
+        f"{WISH_TIME} make wish 🌠",
+        f"{WISH_TIME} make wish",
+        "make wish 🌠",
+        "make wish",
+        f"{WISH_TIME} wish 🌠",
+        "wish 🌠",
+    ]
+    
+    return message_lower in wish_variations
 
 async def remove_shame_roles(guild):
     """Remove the dunce role from all users when a new wish is detected"""
@@ -147,27 +179,11 @@ async def on_message(message):
     guild_id = message.guild.id
     london_time = datetime.now(pytz.timezone('Europe/London'))
     
-    # Check if message is a wish format (various variations)
-    message_lower = message.content.lower().strip()
-    
-    # Accept various wish message formats
-    wish_variations = [
-        "11:11 make a wish 🌠",
-        "11:11 make a wish",
-        "make a wish 🌠",
-        "make a wish",
-        "11:11 make wish 🌠",
-        "11:11 make wish",
-        "make wish 🌠",
-        "make wish",
-        "11:11 wish 🌠",
-        "wish 🌠",
-    ]
-    
-    if message_lower in wish_variations:
-        # Allow anytime in dev channel, otherwise only at 11:11 AM
+    # Check if message is a wish format
+    if is_wish_message(message.content):
+        # Allow anytime in dev channel, otherwise only at configured wish time
         is_dev_channel = message.channel.name == get_dev_channel_name(guild_id)
-        is_correct_time = london_time.strftime('%H:%M') == "11:11"
+        is_correct_time = london_time.strftime('%H:%M') == WISH_TIME
         
         if is_dev_channel or is_correct_time:
             print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
@@ -178,63 +194,16 @@ async def on_message(message):
             # Remove shame roles from all users for fresh start
             await remove_shame_roles(message.guild)
             
-            # Store per-server tracking
-            last_wish_message_id[guild_id] = message.id
-            wish_timestamp[guild_id] = london_time
+            # Debug message for successful wish creation
+            if is_debug_mode(guild_id):
+                await message.channel.send(f"🐛 **DEBUG:** {message.author.mention} successfully created a wish at {london_time.strftime('%H:%M')}! 🌠")
         else:
-            print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not 11:11 - shaming user!")
+            print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {WISH_TIME} - shaming user!")
             # Shame the user for making a wish at the wrong time
             await assign_shame_role(message.guild, message.author)
-            await message.channel.send(f"😤 {message.author.mention} tried to start a wish at {london_time.strftime('%H:%M')} but wishes can only be made at 11:11 AM... OH! OH! BAD WISHES FOR {message.author.mention}! BAD WISHES FOR {message.author.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
+            await message.channel.send(f"😤 {message.author.mention} tried to start a wish at {london_time.strftime('%H:%M')} but wishes can only be made at {WISH_TIME}... OH! OH! BAD WISHES FOR {message.author.mention}! BAD WISHES FOR {message.author.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
 
     await bot.process_commands(message)
-
-@bot.command(name='debug_permissions')
-async def debug_permissions(ctx):
-    """Debug command to check bot permissions and role hierarchy"""
-    server_tag = get_server_tag(ctx.guild)
-    
-    # Only allow in dev channels
-    if ctx.channel.name != get_dev_channel_name(ctx.guild.id):
-        return
-    
-    print(f"{server_tag} 🔍 Debug permissions check requested by {ctx.author.name}")
-    
-    bot_member = ctx.guild.get_member(bot.user.id)
-    role_id = get_shame_role_id(ctx.guild.id)
-    target_role = ctx.guild.get_role(role_id)
-    
-    embed = discord.Embed(title="Bot Permission Debug", color=0x00ff00)
-    
-    # Bot permissions
-    perms = bot_member.guild_permissions
-    embed.add_field(
-        name="Bot Permissions",
-        value=f"Manage Roles: {'✅' if perms.manage_roles else '❌'}\n"
-              f"View Channels: {'✅' if perms.view_channel else '❌'}\n"
-              f"Send Messages: {'✅' if perms.send_messages else '❌'}",
-        inline=False
-    )
-    
-    # Role hierarchy
-    bot_top_role = bot_member.top_role
-    if target_role:
-        hierarchy_ok = bot_top_role.position > target_role.position
-        embed.add_field(
-            name="Role Hierarchy",
-            value=f"Bot's top role: {bot_top_role.name} (pos: {bot_top_role.position})\n"
-                  f"Target role: {target_role.name} (pos: {target_role.position})\n"
-                  f"Hierarchy OK: {'✅' if hierarchy_ok else '❌'}",
-            inline=False
-        )
-    else:
-        embed.add_field(
-            name="Role Hierarchy",
-            value=f"❌ Target role not found (ID: {role_id})",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
 
 @bot.event
 async def on_reaction_add(reaction, user):
@@ -245,26 +214,27 @@ async def on_reaction_add(reaction, user):
     if not reaction.message.guild:
         return
 
-    guild_id = reaction.message.guild.id
     server_tag = get_server_tag(reaction.message.guild)
     
-    # Check if this is a reaction to the current wish message for this server
-    if (guild_id not in last_wish_message_id or 
-        reaction.message.id != last_wish_message_id[guild_id] or 
-        str(reaction.emoji) != "🌠"):
+    # Check if this is a 🌠 reaction to a wish message
+    if str(reaction.emoji) != "🌠" or not is_wish_message(reaction.message.content):
         return
 
-    # Check if the wish was made at 11:11 AM London time
-    if guild_id in wish_timestamp:
-        # Convert wish_timestamp to London time (in case it was stored differently)
-        wish_time_london = wish_timestamp[guild_id].astimezone(pytz.timezone('Europe/London'))
+    # Check if the reaction is being made at the configured wish time (or in dev channel)
+    london_time = datetime.now(pytz.timezone('Europe/London'))
+    is_dev_channel = reaction.message.channel.name == get_dev_channel_name(reaction.message.guild.id)
+    is_correct_time = london_time.strftime('%H:%M') == WISH_TIME
+    
+    if is_dev_channel or is_correct_time:
+        print(f"{server_tag} 🌟 {user.name} made a wish on time at {london_time.strftime('%H:%M')}!")
         
-        if wish_time_london.strftime('%H:%M') == "11:11":
-            print(f"{server_tag} 🌟 {user.name} made a wish on time at 11:11 AM!")
-        else:
-            print(f"{server_tag} 😤 {user.name} tried to make a wish but it wasn't at 11:11 AM... shame!")
-            await assign_shame_role(reaction.message.guild, user)
-            await reaction.message.channel.send(f"😤 {user.mention} tried to make a wish but it wasn't at 11:11 AM... OH! OH! BAD WISHES FOR {user.mention}! BAD WISHES FOR {user.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
+        # Debug message for successful wish reaction
+        if is_debug_mode(reaction.message.guild.id):
+            await reaction.message.channel.send(f"🐛 **DEBUG:** {user.mention} successfully made a wish at {london_time.strftime('%H:%M')}! ✨")
+    else:
+        print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {WISH_TIME}... shame!")
+        await assign_shame_role(reaction.message.guild, user)
+        await reaction.message.channel.send(f"😤 {user.mention} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {WISH_TIME}... OH! OH! BAD WISHES FOR {user.mention}! BAD WISHES FOR {user.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
 
 
 
