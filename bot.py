@@ -22,6 +22,9 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Configuration - Wish time (24-hour format HH:MM)
 WISH_TIME = "11:11"
 
+# Create timezone object once to avoid repeated file system operations
+LONDON_TZ = pytz.timezone('Europe/London')
+
 # Configuration - Map server IDs to role IDs
 SHAME_ROLE_CONFIG = {
     168316445569056768: 1390320164024881192,  # London server: dunce role
@@ -176,12 +179,15 @@ async def on_message(message):
 
     server_tag = get_server_tag(message.guild)
     guild_id = message.guild.id
-    london_time = datetime.now(pytz.timezone('Europe/London'))
+    # Use message creation time, not current time
+    london_time = message.created_at.astimezone(LONDON_TZ)
     
-    # Check if message is a wish format
-    if is_wish_message(message.content):
+    # Check if message is a wish format (with fast precheck)
+    if "wish" in message.content.lower() and is_wish_message(message.content):
         # Allow anytime in dev channel, otherwise only at configured wish time
         is_dev_channel = message.channel.name == get_dev_channel_name(guild_id)
+   
+        london_time = message.created_at.astimezone(LONDON_TZ)
         is_correct_time = london_time.strftime('%H:%M') == WISH_TIME
         
         if is_dev_channel or is_correct_time:
@@ -215,12 +221,12 @@ async def on_reaction_add(reaction, user):
 
     server_tag = get_server_tag(reaction.message.guild)
     
-    # Check if this is a 🌠 reaction to a wish message
-    if str(reaction.emoji) != "🌠" or not is_wish_message(reaction.message.content):
+    # Check if this is a 🌠 reaction to a wish message (with fast precheck)
+    if str(reaction.emoji) != "🌠" or not ("wish" in reaction.message.content.lower() and is_wish_message(reaction.message.content)):
         return
 
     # Check if the reaction is being made at wish time + 15s buffer (or in dev channel)
-    london_time = datetime.now(pytz.timezone('Europe/London'))
+    london_time = datetime.now(LONDON_TZ)
     is_dev_channel = reaction.message.channel.name == get_dev_channel_name(reaction.message.guild.id)
     
     # Create today's wish time and check if within 75 seconds (60s wish minute + 15s buffer)
