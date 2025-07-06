@@ -12,8 +12,8 @@ resource "google_cloud_run_service" "discord_bot" {
         # Discord bots need to run continuously
         resources {
           limits = {
-            cpu    = "0.1"
-            memory = "128Mi"
+            cpu    = "0.5"
+            memory = "256Mi"
           }
         }
         

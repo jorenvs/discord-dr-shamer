@@ -219,12 +219,17 @@ async def on_reaction_add(reaction, user):
     if str(reaction.emoji) != "🌠" or not is_wish_message(reaction.message.content):
         return
 
-    # Check if the reaction is being made at the configured wish time (or in dev channel)
+    # Check if the reaction is being made at wish time + 15s buffer (or in dev channel)
     london_time = datetime.now(pytz.timezone('Europe/London'))
     is_dev_channel = reaction.message.channel.name == get_dev_channel_name(reaction.message.guild.id)
-    is_correct_time = london_time.strftime('%H:%M') == WISH_TIME
     
-    if is_dev_channel or is_correct_time:
+    # Create today's wish time and check if within 75 seconds (60s wish minute + 15s buffer)
+    wish_hour, wish_minute = map(int, WISH_TIME.split(':'))
+    wish_time_today = london_time.replace(hour=wish_hour, minute=wish_minute, second=0, microsecond=0)
+    time_diff = (london_time - wish_time_today).total_seconds()
+    is_correct_time = 0 <= time_diff <= 75
+    
+    if is_correct_time:
         print(f"{server_tag} 🌟 {user.name} made a wish on time at {london_time.strftime('%H:%M')}!")
         
         # Debug message for successful wish reaction
