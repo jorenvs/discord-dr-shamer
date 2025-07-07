@@ -1,4 +1,4 @@
-from .config import *
+from . import config
 from .utils import get_dev_channel_name, get_server_tag
 
 async def handle_bot_mention(message, server_tag, guild_id, bot):
@@ -26,26 +26,22 @@ async def handle_bot_mention(message, server_tag, guild_id, bot):
 
 async def set_wish_time(message, new_time, server_tag):
     """Set the wish time with basic validation"""
-    global WISH_TIME
-    
     # Basic validation - just check if it's HH:MM format
     if len(new_time) == 5 and new_time[2] == ':':
-        old_time = WISH_TIME
-        WISH_TIME = new_time
-        print(f"{server_tag} ⏰ Wish time changed from {old_time} to {WISH_TIME} by {message.author.name}")
-        await message.channel.send(f"✅ Wish time updated to **{WISH_TIME}**! 🕐")
+        old_time = config.WISH_TIME
+        config.WISH_TIME = new_time
+        print(f"{server_tag} ⏰ Wish time changed from {old_time} to {config.WISH_TIME} by {message.author.name}")
+        await message.channel.send(f"✅ Wish time updated to **{config.WISH_TIME}**! 🕐")
     else:
         await message.channel.send(f"❌ Invalid time format! Please use HH:MM format (e.g., 12:12)")
 
 async def set_buffer_time(message, new_buffer, server_tag):
     """Set the buffer time with basic validation"""
-    global WISH_BUFFER_TIME
-    
     # Basic validation - just check if it's a number
     if new_buffer.isdigit():
-        old_buffer = WISH_BUFFER_TIME
-        WISH_BUFFER_TIME = int(new_buffer)
-        print(f"{server_tag} ⏱️ Buffer time changed from {old_buffer}s to {WISH_BUFFER_TIME}s by {message.author.name}")
-        await message.channel.send(f"✅ Buffer time updated to **{WISH_BUFFER_TIME} seconds**! (Total window: {60 + WISH_BUFFER_TIME}s)")
+        old_buffer = config.WISH_BUFFER_TIME
+        config.WISH_BUFFER_TIME = int(new_buffer)
+        print(f"{server_tag} ⏱️ Buffer time changed from {old_buffer}s to {config.WISH_BUFFER_TIME}s by {message.author.name}")
+        await message.channel.send(f"✅ Buffer time updated to **{config.WISH_BUFFER_TIME} seconds**! (Total window: {60 + config.WISH_BUFFER_TIME}s)")
     else:
         await message.channel.send(f"❌ Invalid number! Please use a number (e.g., 20)") 
