@@ -1,4 +1,4 @@
-from . import config
+from .config import config
 from .utils import get_dev_channel_name, get_server_tag
 
 async def handle_bot_mention(message, server_tag, guild_id, bot):

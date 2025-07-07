@@ -1,10 +1,15 @@
 import pytz
 
-# Configuration - Wish time (24-hour format HH:MM)
-WISH_TIME = "11:11"
+class Config:
+    def __init__(self):
+        # Configuration - Wish time (24-hour format HH:MM)
+        self.WISH_TIME = "11:11"
+        
+        # Configuration - Buffer time in seconds (added to 60s wish minute)
+        self.WISH_BUFFER_TIME = 15
 
-# Configuration - Buffer time in seconds (added to 60s wish minute)
-WISH_BUFFER_TIME = 15
+# Create a global config instance
+config = Config()
 
 # Create timezone object once to avoid repeated file system operations
 LONDON_TZ = pytz.timezone('Europe/London')

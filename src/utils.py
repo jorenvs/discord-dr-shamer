@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from .config import *
+from .config import config, LONDON_TZ, SHAME_ROLE_CONFIG, DEV_CHANNEL_CONFIG, DEBUG_MODE_CONFIG
 
 def get_shame_role_id(guild_id):
     """Get the appropriate shame role ID for a server"""
@@ -27,15 +27,15 @@ def is_wish_message(message_content):
     
     # Accept various wish message formats
     wish_variations = [
-        f"{WISH_TIME} make a wish 🌠",
-        f"{WISH_TIME} make a wish",
+        f"{config.WISH_TIME} make a wish 🌠",
+        f"{config.WISH_TIME} make a wish",
         "make a wish 🌠",
         "make a wish",
-        f"{WISH_TIME} make wish 🌠",
-        f"{WISH_TIME} make wish",
+        f"{config.WISH_TIME} make wish 🌠",
+        f"{config.WISH_TIME} make wish",
         "make wish 🌠",
         "make wish",
-        f"{WISH_TIME} wish 🌠",
+        f"{config.WISH_TIME} wish 🌠",
         "wish 🌠",
     ]
     

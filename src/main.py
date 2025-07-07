@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 if os.path.exists('.env'):
     load_dotenv()
 
-from .config import *
+from .config import config, LONDON_TZ, GIF_URL
 from .utils import *
 from .cmds import handle_bot_mention
 
@@ -49,7 +49,7 @@ async def on_message(message):
         # Use message creation time, not current time
         london_time = message.created_at.astimezone(LONDON_TZ)
         
-        is_correct_time = london_time.strftime('%H:%M') == WISH_TIME
+        is_correct_time = london_time.strftime('%H:%M') == config.WISH_TIME
         
         if is_correct_time:
             print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
@@ -62,10 +62,10 @@ async def on_message(message):
             if is_debug_mode(guild_id):
                 await message.channel.send(f"🐛 **DEBUG:** {message.author.mention} successfully created a wish at {london_time.strftime('%H:%M')}! 🌠")
         else:
-            print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {WISH_TIME} - shaming user!")
+            print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - shaming user!")
             # Shame the user for making a wish at the wrong time
             await assign_shame_role(message.guild, message.author, bot)
-            await message.channel.send(f"😤 {message.author.mention} tried to start a wish at {london_time.strftime('%H:%M')} but wishes can only be made at {WISH_TIME}... OH! OH! BAD WISHES FOR {message.author.mention}! BAD WISHES FOR {message.author.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
+            await message.channel.send(f"😤 {message.author.mention} tried to start a wish at {london_time.strftime('%H:%M')} but wishes can only be made at {config.WISH_TIME}... OH! OH! BAD WISHES FOR {message.author.mention}! BAD WISHES FOR {message.author.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
 
     await bot.process_commands(message)
 
@@ -91,10 +91,10 @@ async def on_reaction_add(reaction, user):
     london_time = datetime.now(LONDON_TZ)
     
     # Create today's wish time and check if within buffer (60s wish minute + buffer)
-    wish_hour, wish_minute = map(int, WISH_TIME.split(':'))
+    wish_hour, wish_minute = map(int, config.WISH_TIME.split(':'))
     wish_time_today = london_time.replace(hour=wish_hour, minute=wish_minute, second=0, microsecond=0)
     time_diff = (london_time - wish_time_today).total_seconds()
-    is_correct_time = 0 <= time_diff <= (60 + WISH_BUFFER_TIME)
+    is_correct_time = 0 <= time_diff <= (60 + config.WISH_BUFFER_TIME)
     
     if is_correct_time:
         print(f"{server_tag} 🌟 {user.name} made a wish on time at {london_time.strftime('%H:%M')}!")
@@ -103,9 +103,9 @@ async def on_reaction_add(reaction, user):
         if is_debug_mode(reaction.message.guild.id):
             await reaction.message.channel.send(f"🐛 **DEBUG:** {user.mention} successfully made a wish at {london_time.strftime('%H:%M')}! ✨")
     else:
-        print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {WISH_TIME}... shame!")
+        print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... shame!")
         await assign_shame_role(reaction.message.guild, user, bot)
-        await reaction.message.channel.send(f"😤 {user.mention} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {WISH_TIME}... OH! OH! BAD WISHES FOR {user.mention}! BAD WISHES FOR {user.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
+        await reaction.message.channel.send(f"😤 {user.mention} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... OH! OH! BAD WISHES FOR {user.mention}! BAD WISHES FOR {user.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
