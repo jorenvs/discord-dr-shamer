@@ -3,6 +3,7 @@ from discord.ext import commands
 from datetime import datetime
 import pytz
 import threading
+import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import os
@@ -21,6 +22,9 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Configuration - Wish time (24-hour format HH:MM)
 WISH_TIME = "11:11"
+
+# Configuration - Buffer time in seconds (added to 60s wish minute)
+WISH_BUFFER_TIME = 15
 
 # Create timezone object once to avoid repeated file system operations
 LONDON_TZ = pytz.timezone('Europe/London')
@@ -114,14 +118,20 @@ async def remove_shame_roles(guild):
         
         # Remove the role from all members who have it
         removed_count = 0
-        for member in guild.members:
-            if role in member.roles:
-                try:
-                    await member.remove_roles(role, reason="New wish detected - fresh start")
-                    print(f"{server_tag} 🧹 Removed '{role.name}' role from {member.name}")
-                    removed_count += 1
-                except Exception as e:
-                    print(f"{server_tag} ❌ Failed to remove role from {member.name}: {e}")
+        members_with_role = [member for member in guild.members if role in member.roles]
+        
+        # Process in batches to avoid blocking the event loop
+        for member in members_with_role:
+            try:
+                await member.remove_roles(role, reason="New wish detected - fresh start")
+                print(f"{server_tag} 🧹 Removed '{role.name}' role from {member.name}")
+                removed_count += 1
+            except Exception as e:
+                print(f"{server_tag} ❌ Failed to remove role from {member.name}: {e}")
+            
+            # Yield control back to event loop every few operations to prevent blocking
+            if removed_count % 5 == 0:
+                await asyncio.sleep(0)
         
         if removed_count > 0:
             print(f"{server_tag} ✨ Cleared dunce roles from {removed_count} users for new wish")
@@ -163,6 +173,55 @@ async def assign_shame_role(guild, user):
         if "50013" in str(e):
             print(f"{server_tag} 💡 Permission error - check bot role hierarchy and permissions")
 
+async def handle_bot_mention(message, server_tag, guild_id):
+    """Handle mentions of the bot for commands"""
+    # Only allow commands in dev channels
+    is_dev_channel = message.channel.name == get_dev_channel_name(guild_id)
+    if not is_dev_channel:
+        await message.channel.send(f"⚠️ Bot commands can only be used in the dev channel: #{get_dev_channel_name(guild_id)}")
+        return
+    
+    # Remove the bot mention and get the command
+    content = message.content
+    # Remove the mention (could be <@!123> or <@123>)
+    content = content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
+    
+    # Parse the command
+    parts = content.lower().split()
+    
+    if len(parts) >= 3 and parts[0] == "set" and parts[1] == "wishtime":
+        await set_wish_time(message, parts[2], server_tag)
+    elif len(parts) >= 3 and parts[0] == "set" and parts[1] == "buffer":
+        await set_buffer_time(message, parts[2], server_tag)
+    else:
+        await message.channel.send(f"🤖 Available commands:\n• `@{bot.user.display_name} set wishtime HH:MM` - Set the wish time (e.g., 12:12)\n• `@{bot.user.display_name} set buffer N` - Set the buffer time in seconds (e.g., 20)")
+
+async def set_wish_time(message, new_time, server_tag):
+    """Set the wish time with basic validation"""
+    global WISH_TIME
+    
+    # Basic validation - just check if it's HH:MM format
+    if len(new_time) == 5 and new_time[2] == ':':
+        old_time = WISH_TIME
+        WISH_TIME = new_time
+        print(f"{server_tag} ⏰ Wish time changed from {old_time} to {WISH_TIME} by {message.author.name}")
+        await message.channel.send(f"✅ Wish time updated to **{WISH_TIME}**! 🕐")
+    else:
+        await message.channel.send(f"❌ Invalid time format! Please use HH:MM format (e.g., 12:12)")
+
+async def set_buffer_time(message, new_buffer, server_tag):
+    """Set the buffer time with basic validation"""
+    global WISH_BUFFER_TIME
+    
+    # Basic validation - just check if it's a number
+    if new_buffer.isdigit():
+        old_buffer = WISH_BUFFER_TIME
+        WISH_BUFFER_TIME = int(new_buffer)
+        print(f"{server_tag} ⏱️ Buffer time changed from {old_buffer}s to {WISH_BUFFER_TIME}s by {message.author.name}")
+        await message.channel.send(f"✅ Buffer time updated to **{WISH_BUFFER_TIME} seconds**! (Total window: {60 + WISH_BUFFER_TIME}s)")
+    else:
+        await message.channel.send(f"❌ Invalid number! Please use a number (e.g., 20)")
+
 @bot.event
 async def on_ready():
     print(f'✅ Dr. Shamer is online as {bot.user}')
@@ -179,22 +238,22 @@ async def on_message(message):
 
     server_tag = get_server_tag(message.guild)
     guild_id = message.guild.id
-    # Use message creation time, not current time
-    london_time = message.created_at.astimezone(LONDON_TZ)
+    
+    # Check if the bot is mentioned
+    if bot.user.mentioned_in(message):
+        await handle_bot_mention(message, server_tag, guild_id)
+        return
     
     # Check if message is a wish format (with fast precheck)
     if "wish" in message.content.lower() and is_wish_message(message.content):
-        # Allow anytime in dev channel, otherwise only at configured wish time
-        is_dev_channel = message.channel.name == get_dev_channel_name(guild_id)
-   
+        # Use message creation time, not current time
         london_time = message.created_at.astimezone(LONDON_TZ)
+        
         is_correct_time = london_time.strftime('%H:%M') == WISH_TIME
         
-        if is_dev_channel or is_correct_time:
+        if is_correct_time:
             print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
             print(f"{server_tag} 📝 Message: '{message.content}'")
-            if is_dev_channel:
-                print(f"{server_tag} 📝 Dev channel - allowing wish at any time")
             
             # Remove shame roles from all users for fresh start
             await remove_shame_roles(message.guild)
@@ -222,18 +281,20 @@ async def on_reaction_add(reaction, user):
     server_tag = get_server_tag(reaction.message.guild)
     
     # Check if this is a 🌠 reaction to a wish message (with fast precheck)
-    if str(reaction.emoji) != "🌠" or not ("wish" in reaction.message.content.lower() and is_wish_message(reaction.message.content)):
+    if str(reaction.emoji) != "🌠":
+        return
+    
+    if not ("wish" in reaction.message.content.lower() and is_wish_message(reaction.message.content)):
         return
 
     # Check if the reaction is being made at wish time + 15s buffer (or in dev channel)
     london_time = datetime.now(LONDON_TZ)
-    is_dev_channel = reaction.message.channel.name == get_dev_channel_name(reaction.message.guild.id)
     
-    # Create today's wish time and check if within 75 seconds (60s wish minute + 15s buffer)
+    # Create today's wish time and check if within buffer (60s wish minute + buffer)
     wish_hour, wish_minute = map(int, WISH_TIME.split(':'))
     wish_time_today = london_time.replace(hour=wish_hour, minute=wish_minute, second=0, microsecond=0)
     time_diff = (london_time - wish_time_today).total_seconds()
-    is_correct_time = 0 <= time_diff <= 75
+    is_correct_time = 0 <= time_diff <= (60 + WISH_BUFFER_TIME)
     
     if is_correct_time:
         print(f"{server_tag} 🌟 {user.name} made a wish on time at {london_time.strftime('%H:%M')}!")

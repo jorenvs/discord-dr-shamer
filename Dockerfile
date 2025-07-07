@@ -20,7 +20,7 @@ COPY requirements.txt .
 RUN uv pip install --system -r requirements.txt
 
 # Copy application files
-COPY bot.py .
+COPY src/ ./src/
 
 # Run the bot
-CMD ["python", "bot.py"] 
+CMD ["python", "-m", "src.main"] 
