@@ -1,6 +1,10 @@
 import random
 import discord
 import os
+from io import BytesIO
+
+# Store preloaded GIF data
+_gif_cache = {}
 
 # Shame reactions with corresponding GIFs and messages
 SHAME_REACTIONS = [
@@ -38,6 +42,25 @@ SHAME_REACTIONS = [
     },
 ]
 
+def preload_gifs():
+    """Preload all GIF files into memory at startup"""
+    print("🎬 Preloading GIFs...")
+    for reaction in SHAME_REACTIONS:
+        gif_path = reaction["gif_path"]
+        filename = os.path.basename(gif_path)
+        
+        if os.path.exists(gif_path):
+            try:
+                with open(gif_path, 'rb') as gif_file:
+                    _gif_cache[filename] = gif_file.read()
+                print(f"✅ Loaded {filename}")
+            except Exception as e:
+                print(f"❌ Failed to load {filename}: {e}")
+        else:
+            print(f"⚠️ GIF not found: {gif_path}")
+    
+    print(f"🎬 Preloaded {len(_gif_cache)} GIFs")
+
 def get_random_shame_reaction():
     """Get a random shame reaction with GIF and message"""
     return random.choice(SHAME_REACTIONS)
@@ -56,12 +79,15 @@ async def send_shame_message(channel, user_mention, london_time, wish_time, reac
     shame_message = reaction["message"].format(user=user_mention)
     full_message = f"{base_message} {shame_message}"
     
-    # Send message with GIF attachment
+    # Send message with preloaded GIF attachment
     gif_path = reaction["gif_path"]
-    if os.path.exists(gif_path):
-        with open(gif_path, 'rb') as gif_file:
-            discord_file = discord.File(gif_file, filename=os.path.basename(gif_path))
-            await channel.send(content=full_message, file=discord_file)
+    filename = os.path.basename(gif_path)
+    
+    if filename in _gif_cache:
+        gif_data = BytesIO(_gif_cache[filename])
+        discord_file = discord.File(gif_data, filename=filename)
+        await channel.send(content=full_message, file=discord_file)
     else:
-        # Fallback to message only if GIF not found
+        # Fallback to message only if GIF not preloaded
+        print(f"⚠️ GIF not in cache: {filename}")
         await channel.send(full_message) 
