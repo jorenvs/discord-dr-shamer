@@ -1,72 +1,48 @@
 import random
 import discord
-import os
-from io import BytesIO
-
-# Store preloaded GIF data
-_gif_cache = {}
 
 # Shame reactions with corresponding GIFs and messages
 SHAME_REACTIONS = [
     {
-        "gif_path": "src/gifs/shame-got.gif",
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/shame-got.gif",
         "message": "OH! OH! BAD WISHES FOR {user}! BAD WISHES FOR {user} FOR SEVEN YEARS! 🔔🔔🔔"
     },
     {
-        "gif_path": "src/gifs/hotfuzzshame.gif", 
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/hotfuzzshame.gif", 
         "message": "Play time's over, {user}! You missed the wish window and now you can cool off with the dunce hat! 🎄❄️"
     },
     {
-        "gif_path": "src/gifs/shamebox.gif",
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/shamebox.gif",
         "message": "Into the shame box with you, {user}! Learn to tell time! ⏰📦"
     },
     {
-        "gif_path": "src/gifs/wishmassy.gif",
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/wishmassy.gif",
         "message": "Where's the proper timing, {user}?! You total idiot, that was your job! That wasn't very wishmassy of you! 😤🦃"
     },
     {
-        "gif_path": "src/gifs/shocked-cat.gif",
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/shocked-cat.gif",
         "message": "Oh wow, {user}! Did you really just try to wish after the wish time? I'm genuinely shocked! 😱⏰"
     },
     {
-        "gif_path": "src/gifs/taskmaster-distance.gif",
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/taskmaster-distance.gif",
         "message": "{user}, you missed the wish window... by some distance. Greg is disappointed. Very disappointed. 🕚📉"
     },
     {
-        "gif_path": "src/gifs/drwho-late.gif",
-        "message": "Well you’re too late, {user}! HAAAA! The wish window has closed — and so has time itself! ⏳🔒"
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/drwho-late.gif",
+        "message": "Well you're too late, {user}! HAAAA! The wish window has closed — and so has time itself! ⏳🔒"
     },
     {
-        "gif_path": "src/gifs/pulpfiction.gif",
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/pulpfiction.gif",
         "message": "Say wish again, {user}. I dare you. I double dare you! 🔫😤"
     },
 ]
-
-def preload_gifs():
-    """Preload all GIF files into memory at startup"""
-    print("🎬 Preloading GIFs...")
-    for reaction in SHAME_REACTIONS:
-        gif_path = reaction["gif_path"]
-        filename = os.path.basename(gif_path)
-        
-        if os.path.exists(gif_path):
-            try:
-                with open(gif_path, 'rb') as gif_file:
-                    _gif_cache[filename] = gif_file.read()
-                print(f"✅ Loaded {filename}")
-            except Exception as e:
-                print(f"❌ Failed to load {filename}: {e}")
-        else:
-            print(f"⚠️ GIF not found: {gif_path}")
-    
-    print(f"🎬 Preloaded {len(_gif_cache)} GIFs")
 
 def get_random_shame_reaction():
     """Get a random shame reaction with GIF and message"""
     return random.choice(SHAME_REACTIONS)
 
 async def send_shame_message(channel, user_mention, london_time, wish_time, reaction_type="message"):
-    """Send a randomized shame message with GIF"""
+    """Send a randomized shame message with GIF embed"""
     # Get random reaction
     reaction = get_random_shame_reaction()
     
@@ -79,15 +55,11 @@ async def send_shame_message(channel, user_mention, london_time, wish_time, reac
     shame_message = reaction["message"].format(user=user_mention)
     full_message = f"{base_message} {shame_message}"
     
-    # Send message with preloaded GIF attachment
-    gif_path = reaction["gif_path"]
-    filename = os.path.basename(gif_path)
+    # Create embed with GIF
+    embed = discord.Embed(
+        description=full_message,
+        color=0xFF0000  # Red color for shame
+    )
+    embed.set_image(url=reaction["gif_url"])
     
-    if filename in _gif_cache:
-        gif_data = BytesIO(_gif_cache[filename])
-        discord_file = discord.File(gif_data, filename=filename)
-        await channel.send(content=full_message, file=discord_file)
-    else:
-        # Fallback to message only if GIF not preloaded
-        print(f"⚠️ GIF not in cache: {filename}")
-        await channel.send(full_message) 
+    await channel.send(embed=embed) 

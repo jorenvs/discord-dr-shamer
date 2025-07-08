@@ -13,7 +13,7 @@ if os.path.exists('.env'):
 from .config import config, LONDON_TZ
 from .utils import *
 from .cmds import handle_bot_mention
-from .shame_reactions import send_shame_message, preload_gifs
+from .shame_reactions import send_shame_message
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -27,9 +27,6 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     print(f'✅ Dr. Shamer is online as {bot.user}')
     print(f'✅ Connected to {len(bot.guilds)} servers: {", ".join([guild.name for guild in bot.guilds])}')
-    
-    # Preload all GIFs into memory
-    preload_gifs()
 
 @bot.event
 async def on_message(message):
