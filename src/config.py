@@ -36,6 +36,4 @@ DEBUG_MODE_CONFIG = {
     1390289538613772400: True,  # JJ's test server - debug on
     1343509963812769832: True,  # The Post Office - debug on
     # Add more servers as needed - default to True for new servers
-}
-
-GIF_URL = "https://tenor.com/view/shame-septa-got-westeros-walk-of-atonement-gif-3828987465249036403" 
+} 

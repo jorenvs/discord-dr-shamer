@@ -10,9 +10,10 @@ from dotenv import load_dotenv
 if os.path.exists('.env'):
     load_dotenv()
 
-from .config import config, LONDON_TZ, GIF_URL
+from .config import config, LONDON_TZ
 from .utils import *
 from .cmds import handle_bot_mention
+from .shame_reactions import send_shame_message
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -65,7 +66,7 @@ async def on_message(message):
             print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - shaming user!")
             # Shame the user for making a wish at the wrong time
             await assign_shame_role(message.guild, message.author, bot)
-            await message.channel.send(f"😤 {message.author.mention} tried to start a wish at {london_time.strftime('%H:%M')} but wishes can only be made at {config.WISH_TIME}... OH! OH! BAD WISHES FOR {message.author.mention}! BAD WISHES FOR {message.author.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
+            await send_shame_message(message.channel, message.author.mention, london_time.strftime('%H:%M'), config.WISH_TIME)
 
     await bot.process_commands(message)
 
@@ -105,7 +106,7 @@ async def on_reaction_add(reaction, user):
     else:
         print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... shame!")
         await assign_shame_role(reaction.message.guild, user, bot)
-        await reaction.message.channel.send(f"😤 {user.mention} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... OH! OH! BAD WISHES FOR {user.mention}! BAD WISHES FOR {user.mention} FOR SEVEN YEARS! 🔔🔔🔔\n\n{GIF_URL}")
+        await send_shame_message(reaction.message.channel, user.mention, london_time.strftime('%H:%M'), config.WISH_TIME, reaction_type="reaction")
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
