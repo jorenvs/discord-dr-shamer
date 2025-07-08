@@ -32,9 +32,10 @@ SHAME_REACTIONS = [
         "gif_path": "src/gifs/drwho-late.gif",
         "message": "Well you’re too late, {user}! HAAAA! The wish window has closed — and so has time itself! ⏳🔒"
     },
-    
-    
-
+    {
+        "gif_path": "src/gifs/pulpfiction.gif",
+        "message": "Say wish again, {user}. I dare you. I double dare you! 🔫😤"
+    },
 ]
 
 def get_random_shame_reaction():
