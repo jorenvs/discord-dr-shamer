@@ -14,6 +14,7 @@ from .config import config, LONDON_TZ
 from .utils import *
 from .cmds import handle_bot_mention
 from .shame_reactions import send_shame_message
+from .wish_reactions import track_successful_wish, clear_successful_wishes
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -40,7 +41,16 @@ async def on_message(message):
     server_tag = get_server_tag(message.guild)
     guild_id = message.guild.id
     
-    # Check if the bot is mentioned
+    # Check if this is a reply to the bot - if so, ignore it completely
+    is_reply_to_bot = (message.reference and 
+                      message.reference.message_id and
+                      message.reference.resolved and
+                      message.reference.resolved.author.id == bot.user.id)
+    
+    if is_reply_to_bot:
+        return  # Ignore replies to the bot completely
+    
+    # Check if the bot is mentioned (but not a reply)
     if bot.user.mentioned_in(message):
         await handle_bot_mention(message, server_tag, guild_id, bot)
         return
@@ -59,14 +69,21 @@ async def on_message(message):
             # Remove shame roles from all users for fresh start
             await remove_shame_roles(message.guild, bot)
             
+            # Clear any previous successful wishes for fresh start
+            clear_successful_wishes(guild_id, message.guild)
+            
+            # Track successful wish
+            track_successful_wish(message.guild, message.author, message.channel)
+            
             # Debug message for successful wish creation
             if is_debug_mode(guild_id):
                 await message.channel.send(f"🐛 **DEBUG:** {message.author.mention} successfully created a wish at {london_time.strftime('%H:%M')}! 🌠")
         else:
             print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - shaming user!")
             # Shame the user for making a wish at the wrong time
-            await assign_shame_role(message.guild, message.author, bot)
-            await send_shame_message(message.channel, message.author.mention, london_time.strftime('%H:%M'), config.WISH_TIME)
+            role_assigned = await assign_shame_role(message.guild, message.author, bot)
+            if role_assigned:
+                await send_shame_message(message.channel, message.author.mention, london_time.strftime('%H:%M'), config.WISH_TIME)
 
     await bot.process_commands(message)
 
@@ -100,13 +117,17 @@ async def on_reaction_add(reaction, user):
     if is_correct_time:
         print(f"{server_tag} 🌟 {user.name} made a wish on time at {london_time.strftime('%H:%M')}!")
         
+        # Track successful wish
+        track_successful_wish(reaction.message.guild, user, reaction.message.channel)
+        
         # Debug message for successful wish reaction
         if is_debug_mode(reaction.message.guild.id):
             await reaction.message.channel.send(f"🐛 **DEBUG:** {user.mention} successfully made a wish at {london_time.strftime('%H:%M')}! ✨")
     else:
         print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... shame!")
-        await assign_shame_role(reaction.message.guild, user, bot)
-        await send_shame_message(reaction.message.channel, user.mention, london_time.strftime('%H:%M'), config.WISH_TIME, reaction_type="reaction")
+        role_assigned = await assign_shame_role(reaction.message.guild, user, bot)
+        if role_assigned:
+            await send_shame_message(reaction.message.channel, user.mention, london_time.strftime('%H:%M'), config.WISH_TIME, reaction_type="reaction")
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):

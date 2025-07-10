@@ -7,6 +7,9 @@ class Config:
         
         # Configuration - Buffer time in seconds (added to 60s wish minute)
         self.WISH_BUFFER_TIME = 15
+        
+        # Configuration - Time to wait before sending wish summary (in seconds)
+        self.WISH_SUMMARY_DELAY = 180  # 3 minutes
 
 # Create a global config instance
 config = Config()

@@ -21,8 +21,10 @@ async def handle_bot_mention(message, server_tag, guild_id, bot):
         await set_wish_time(message, parts[2], server_tag)
     elif len(parts) >= 3 and parts[0] == "set" and parts[1] == "buffer":
         await set_buffer_time(message, parts[2], server_tag)
+    elif len(parts) >= 3 and parts[0] == "set" and parts[1] == "summarydelay":
+        await set_summary_delay(message, parts[2], server_tag)
     else:
-        await message.channel.send(f"🤖 Available commands:\n• `@{bot.user.display_name} set wishtime HH:MM` - Set the wish time (e.g., 12:12)\n• `@{bot.user.display_name} set buffer N` - Set the buffer time in seconds (e.g., 20)")
+        await message.channel.send(f"🤖 Available commands:\n• `@{bot.user.display_name} set wishtime HH:MM` - Set the wish time (e.g., 12:12)\n• `@{bot.user.display_name} set buffer N` - Set the buffer time in seconds (e.g., 20)\n• `@{bot.user.display_name} set summary N` - Set the summary delay in seconds (e.g., 180)")
 
 async def set_wish_time(message, new_time, server_tag):
     """Set the wish time with basic validation"""
@@ -45,3 +47,15 @@ async def set_buffer_time(message, new_buffer, server_tag):
         await message.channel.send(f"✅ Buffer time updated to **{config.WISH_BUFFER_TIME} seconds**! (Total window: {60 + config.WISH_BUFFER_TIME}s)")
     else:
         await message.channel.send(f"❌ Invalid number! Please use a number (e.g., 20)") 
+
+
+async def set_summary_delay(message, new_delay, server_tag):
+    """Set the summary delay with basic validation"""
+    # Basic validation - just check if it's a number
+    if new_delay.isdigit():
+        old_delay = config.WISH_SUMMARY_DELAY
+        config.WISH_SUMMARY_DELAY = int(new_delay)
+        print(f"{server_tag} ⏰ Summary delay changed from {old_delay}s to {config.WISH_SUMMARY_DELAY}s by {message.author.name}")
+        await message.channel.send(f"✅ Summary delay updated to **{config.WISH_SUMMARY_DELAY} seconds**!")
+    else:
+        await message.channel.send(f"❌ Invalid number! Please use a number (e.g., 180)")

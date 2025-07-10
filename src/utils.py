@@ -97,25 +97,34 @@ async def assign_shame_role(guild, user, bot):
         role = guild.get_role(role_id)
         if not role:
             print(f"{server_tag} ❌ Role with ID {role_id} not found in {guild.name} (Guild ID: {guild.id})")
-            return
+            return False
+        
+        # Check if user already has the shame role
+        if role in user.roles:
+            print(f"{server_tag} ⏭️ {user.name} already has the '{role.name}' role - skipping shame reaction")
+            return False
         
         # Check bot permissions before attempting to add role
         bot_member = guild.get_member(bot.user.id)
         if not bot_member.guild_permissions.manage_roles:
             print(f"{server_tag} ❌ Bot missing 'Manage Roles' permission")
-            return
+            return False
         
         # Check role hierarchy - bot's top role must be higher than target role
         bot_top_role = bot_member.top_role
         if bot_top_role.position <= role.position:
             print(f"{server_tag} ❌ Bot role '{bot_top_role.name}' (pos: {bot_top_role.position}) is not higher than target role '{role.name}' (pos: {role.position})")
             print(f"{server_tag} 💡 Move bot role above '{role.name}' in Server Settings → Roles")
-            return
+            return False
         
         # Add the role to the user
         await user.add_roles(role, reason="Failed to make a proper wish")
         print(f"{server_tag} 🔴 Added '{role.name}' role to {user.name}")
+        return True
     except Exception as e:
         print(f"{server_tag} ❌ Error assigning role: {e}")
         if "50013" in str(e):
-            print(f"{server_tag} 💡 Permission error - check bot role hierarchy and permissions") 
+            print(f"{server_tag} 💡 Permission error - check bot role hierarchy and permissions")
+        return False
+
+ 
