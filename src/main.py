@@ -14,7 +14,7 @@ from .config import config, LONDON_TZ
 from .utils import *
 from .cmds import handle_bot_mention
 from .shame_reactions import send_shame_message
-from .wish_reactions import track_successful_wish, clear_successful_wishes
+from .wish_reactions import track_successful_wish
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -66,14 +66,11 @@ async def on_message(message):
             print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
             print(f"{server_tag} 📝 Message: '{message.content}'")
             
-            # Remove shame roles from all users for fresh start
-            await remove_shame_roles(message.guild, bot)
-            
-            # Clear any previous successful wishes for fresh start
-            clear_successful_wishes(guild_id, message.guild)
-            
-            # Track successful wish
+            # Track successful wish (will clear any previous tracking automatically)
             track_successful_wish(message.guild, message.author, message.channel)
+            
+            # Remove shame roles from all users for fresh start (do this last as it's slow)
+            await remove_shame_roles(message.guild, bot)
             
             # Debug message for successful wish creation
             if is_debug_mode(guild_id):

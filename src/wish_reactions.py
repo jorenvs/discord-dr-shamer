@@ -98,20 +98,15 @@ def track_successful_wish(guild, user, channel):
     if guild_id not in successful_wishers:
         successful_wishers[guild_id] = {'users': set(), 'summary_scheduled': False, 'channel': None}
     
-    # Add user to successful wishers
-    successful_wishers[guild_id]['users'].add(user)
-    successful_wishers[guild_id]['channel'] = channel
-    
-    # Schedule summary task if not already scheduled
+    # Schedule summary task if not already scheduled (this means it's a new wish window)
     if not successful_wishers[guild_id]['summary_scheduled']:
-        successful_wishers[guild_id]['summary_scheduled'] = True
+        successful_wishers[guild_id] = {'users': set(), 'summary_scheduled': True, 'channel': channel}
         server_tag = get_server_tag(guild)
         print(f"{server_tag} ⏰ Scheduled wish summary to run in {config.WISH_SUMMARY_DELAY} seconds")
         asyncio.create_task(send_wish_summary(guild_id, channel))
+    
+    # Add user to successful wishers
+    successful_wishers[guild_id]['users'].add(user)
+    successful_wishers[guild_id]['channel'] = channel
 
-def clear_successful_wishes(guild_id, guild=None):
-    """Clear successful wishers for a guild (called when new wish message is created)"""
-    if guild_id in successful_wishers and successful_wishers[guild_id]['users']:
-        successful_wishers[guild_id] = {'users': set(), 'summary_scheduled': False, 'channel': None}
-        server_tag = get_server_tag(guild) if guild else f"[Guild {guild_id}]"
-        print(f"{server_tag} 🧹 Cleared successful wishers for new wish window") 
+ 
