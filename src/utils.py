@@ -1,6 +1,12 @@
 import asyncio
+import re
 from datetime import datetime
 from .config import config, LONDON_TZ, SHAME_ROLE_CONFIG, DEV_CHANNEL_CONFIG, DEBUG_MODE_CONFIG
+
+class WrongTimeException(Exception):
+    def __init__(self, used_time):
+        self.used_time = used_time
+        super().__init__(f"Wrong time used: {used_time}")
 
 def get_shame_role_id(guild_id):
     """Get the appropriate shame role ID for a server"""
@@ -22,24 +28,24 @@ def get_dev_channel_name(guild_id):
     return DEV_CHANNEL_CONFIG.get(guild_id, "pkl-dev")  # Default to pkl-dev
 
 def is_wish_message(message_content):
-    """Check if a message contains wish text"""
-    message_lower = message_content.lower().strip()
+    """Check if message is a wish format, raise exception if wrong time"""
+    text = message_content.lower().strip()
     
-    # Accept various wish message formats
-    wish_variations = [
-        f"{config.WISH_TIME} make a wish 🌠",
-        f"{config.WISH_TIME} make a wish",
-        "make a wish 🌠",
-        "make a wish",
-        f"{config.WISH_TIME} make wish 🌠",
-        f"{config.WISH_TIME} make wish",
-        "make wish 🌠",
-        "make wish",
-        f"{config.WISH_TIME} wish 🌠",
-        "wish 🌠",
-    ]
+    # Check for valid wish patterns
+    has_make_wish = "make a wish" in text
+    has_wish_with_star = "wish" in text and "🌠" in message_content  # Use original for emoji
     
-    return message_lower in wish_variations
+    if not (has_make_wish or has_wish_with_star):
+        return False
+    
+    # If it's a wish message, check for time and validate
+    time_match = re.search(r'\b(\d{1,2}:\d{2})\b', text)
+    if time_match:
+        used_time = time_match.group(1)
+        if used_time != config.WISH_TIME:
+            raise WrongTimeException(used_time)
+    
+    return True
 
 async def remove_shame_roles(guild, bot):
     """Remove the dunce role from all users when a new wish is detected"""

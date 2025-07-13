@@ -49,6 +49,8 @@ async def send_shame_message(channel, user_mention, london_time, wish_time, reac
     # Format the base message based on type
     if reaction_type == "reaction":
         base_message = f"😤 {user_mention} tried to make a wish at {london_time} but it wasn't at {wish_time}..."
+    elif reaction_type == "wrong_time":
+        base_message = f"⏰ {user_mention} Nice try! But wishes are granted at **{wish_time}**, not {london_time}. Set your alarms!"
     else:
         base_message = f"😤 {user_mention} tried to start a wish at {london_time} but wishes can only be made at {wish_time}..."
     

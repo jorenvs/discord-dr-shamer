@@ -12,6 +12,7 @@ if os.path.exists('.env'):
 
 from .config import config, LONDON_TZ
 from .utils import *
+from .utils import WrongTimeException
 from .cmds import handle_bot_mention
 from .shame_reactions import send_shame_message
 from .wish_reactions import track_successful_wish
@@ -56,31 +57,40 @@ async def on_message(message):
         return
     
     # Check if message is a wish format (with fast precheck)
-    if "wish" in message.content.lower() and is_wish_message(message.content):
-        # Use message creation time, not current time
-        london_time = message.created_at.astimezone(LONDON_TZ)
+    if "wish" in message.content.lower():
+        try:
+            if is_wish_message(message.content):
+                # Use message creation time, not current time
+                london_time = message.created_at.astimezone(LONDON_TZ)
+                
+                is_correct_time = london_time.strftime('%H:%M') == config.WISH_TIME
+                
+                if is_correct_time:
+                    print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
+                    print(f"{server_tag} 📝 Message: '{message.content}'")
+                    
+                    # Track successful wish (will clear any previous tracking automatically)
+                    track_successful_wish(message.guild, message.author, message.channel)
+                    
+                    # Remove shame roles from all users for fresh start (do this last as it's slow)
+                    await remove_shame_roles(message.guild, bot)
+                    
+                    # Debug message for successful wish creation
+                    if is_debug_mode(guild_id):
+                        await message.channel.send(f"🐛 **DEBUG:** {message.author.mention} successfully created a wish at {london_time.strftime('%H:%M')}! 🌠")
+                else:
+                    print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - shaming user!")
+                    # Shame the user for making a wish at the wrong time
+                    role_assigned = await assign_shame_role(message.guild, message.author, bot)
+                    if role_assigned:
+                        await send_shame_message(message.channel, message.author.mention, london_time.strftime('%H:%M'), config.WISH_TIME)
         
-        is_correct_time = london_time.strftime('%H:%M') == config.WISH_TIME
-        
-        if is_correct_time:
-            print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
-            print(f"{server_tag} 📝 Message: '{message.content}'")
-            
-            # Track successful wish (will clear any previous tracking automatically)
-            track_successful_wish(message.guild, message.author, message.channel)
-            
-            # Remove shame roles from all users for fresh start (do this last as it's slow)
-            await remove_shame_roles(message.guild, bot)
-            
-            # Debug message for successful wish creation
-            if is_debug_mode(guild_id):
-                await message.channel.send(f"🐛 **DEBUG:** {message.author.mention} successfully created a wish at {london_time.strftime('%H:%M')}! 🌠")
-        else:
-            print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - shaming user!")
-            # Shame the user for making a wish at the wrong time
+        except WrongTimeException as e:
+            print(f"{server_tag} ⏰ Wrong time in wish message: {e.used_time} instead of {config.WISH_TIME} - shaming user!")
+            # Shame the user for mentioning wrong time in wish
             role_assigned = await assign_shame_role(message.guild, message.author, bot)
             if role_assigned:
-                await send_shame_message(message.channel, message.author.mention, london_time.strftime('%H:%M'), config.WISH_TIME)
+                await send_shame_message(message.channel, message.author.mention, e.used_time, config.WISH_TIME, reaction_type="wrong_time")
 
     await bot.process_commands(message)
 
@@ -99,8 +109,14 @@ async def on_reaction_add(reaction, user):
     if str(reaction.emoji) != "🌠":
         return
     
-    if not ("wish" in reaction.message.content.lower() and is_wish_message(reaction.message.content)):
+    if "wish" not in reaction.message.content.lower():
         return
+    
+    try:
+        if not is_wish_message(reaction.message.content):
+            return
+    except WrongTimeException:
+        return  # Ignore reactions to messages with wrong time
 
     # Check if the reaction is being made at wish time + buffer
     london_time = datetime.now(LONDON_TZ)
