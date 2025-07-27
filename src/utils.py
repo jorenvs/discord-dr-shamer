@@ -1,7 +1,7 @@
 import asyncio
 import re
 from datetime import datetime
-from .config import config, LONDON_TZ, SHAME_ROLE_CONFIG, DEV_CHANNEL_CONFIG, DEBUG_MODE_CONFIG, SHAME_SUMMARY_CONFIG
+from .config import config, LONDON_TZ, SHAME_ROLE_CONFIG, DEV_CHANNEL_CONFIG, DEBUG_MODE_CONFIG, SHAME_SUMMARY_CONFIG, SHAME_SUMMARY_CHANNEL_CONFIG
 
 class WrongTimeException(Exception):
     def __init__(self, used_time):
@@ -30,6 +30,10 @@ def is_shame_summary_enabled(guild_id):
 def get_dev_channel_name(guild_id):
     """Get the appropriate dev channel name for a server"""
     return DEV_CHANNEL_CONFIG.get(guild_id, "pkl-dev")  # Default to pkl-dev
+
+def get_shame_summary_channel_name(guild_id):
+    """Get the appropriate shame summary channel name for a server"""
+    return SHAME_SUMMARY_CHANNEL_CONFIG.get(guild_id, get_dev_channel_name(guild_id))  # Default to dev channel
 
 def is_wish_message(message_content):
     """Check if message is a wish format, raise exception if wrong time"""

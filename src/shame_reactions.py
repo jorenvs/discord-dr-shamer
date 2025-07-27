@@ -35,6 +35,10 @@ SHAME_REACTIONS = [
         "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/pulpfiction.gif",
         "message": "Say wish again, {user}. I dare you. I double dare you! 🔫😤"
     },
+    {
+        "gif_url": "https://storage.googleapis.com/ldn-discord-dr-shamer-gifs/pieholes.gif",
+        "message": "Keep your terrible wish timing to yourself, {user}! Nobody wants to hear your excuses! 😤🤐"
+    },
 ]
 
 def get_random_shame_reaction():

@@ -50,4 +50,12 @@ SHAME_SUMMARY_CONFIG = {
     1390289538613772400: True,  # JJ's test server - enabled
     1343509963812769832: True,  # The Post Office - enabled
     # Add more servers as needed - default to True for new servers
+}
+
+# Configuration - Shame summary channel per server
+SHAME_SUMMARY_CHANNEL_CONFIG = {
+    168316445569056768: "general",        # London server - use general
+    1390289538613772400: "dr-shamer-dev", # JJ's test server - same as dev
+    1343509963812769832: "dr-shamer-dev", # The Post Office - same as dev
+    # Add more servers as needed - default to dev channel for new servers
 } 

@@ -3,8 +3,11 @@ import discord
 from datetime import datetime, time, timedelta
 from .config import config, LONDON_TZ, SHAME_SUMMARY_CONFIG
 from .firestore_db import get_daily_shamers
-from .utils import get_server_tag
+from .utils import get_server_tag, get_shame_summary_channel_name
 from .shame_reactions import get_random_shame_reaction
+
+# Store reference to the current shame summary task
+current_shame_task = None
 
 async def send_shame_summary(guild, channel):
     """Send daily shame summary for a guild"""
@@ -23,58 +26,35 @@ async def send_shame_summary(guild, channel):
         print(f"{server_tag} 😊 No shamers today - skipping shame summary")
         return
     
-    try:
-        # Convert user IDs to user mentions
-        shamer_mentions = []
-        for user_id in shamers:
-            try:
-                user = guild.get_member(int(user_id))
-                if user:
-                    shamer_mentions.append(user.mention)
-                else:
-                    # User might have left the server
-                    shamer_mentions.append(f"<@{user_id}>")
-            except (ValueError, TypeError):
-                continue
-        
-        if not shamer_mentions:
-            print(f"{server_tag} 😊 No valid shamers to mention - skipping shame summary")
-            return
-        
-        # Get random shame reaction (same as individual shaming)
-        reaction = get_random_shame_reaction()
-        
-        # Format the shame summary message (similar to individual shame messages)
-        if len(shamer_mentions) == 1:
-            base_message = f"🔔 **Daily Shame Summary** 🔔\n\n{shamer_mentions[0]} was shamed today for poor wish timing!"
-        else:
-            user_list = ", ".join(shamer_mentions)
-            base_message = f"🔔 **Daily Shame Summary** 🔔\n\n{user_list} were shamed today for poor wish timing!"
-        
-        # Use the shame reaction message but adapted for multiple users
-        if len(shamer_mentions) == 1:
-            shame_message = reaction["message"].format(user=shamer_mentions[0])
-        else:
-            # For multiple users, adapt the message
-            users_text = "you all" if len(shamer_mentions) > 2 else "you both"
-            shame_message = reaction["message"].replace("{user}", users_text)
-        
-        full_message = f"{base_message}\n\n{shame_message}\n\nRemember: wishes must be made at **{config.WISH_TIME}** London time! ⏰"
-        
-        # Create embed with GIF (same as shame reactions)
-        embed = discord.Embed(
-            description=full_message,
-            color=0xFF0000,  # Red color for shame
-            timestamp=datetime.now()
-        )
-        embed.set_image(url=reaction["gif_url"])
-        embed.set_footer(text="Daily Shame Summary")
-        
-        await channel.send(embed=embed)
-        print(f"{server_tag} 📋 Sent daily shame summary for {len(shamer_mentions)} users")
-        
-    except Exception as e:
-        print(f"{server_tag} ❌ Failed to send shame summary: {e}")
+    # Convert user IDs to user mentions (simple format)
+    shamer_mentions = [f"<@{user_id}>" for user_id in shamers]
+    
+    # Get random shame reaction (same as individual shaming)
+    reaction = get_random_shame_reaction()
+    
+    # Format the message like shame reactions
+    if len(shamer_mentions) == 1:
+        base_message = f"😤 {shamer_mentions[0]} tried to wish but it wasn't at {config.WISH_TIME}..."
+        shame_message = reaction["message"].format(user=shamer_mentions[0])
+    else:
+        user_list = ", ".join(shamer_mentions)
+        base_message = f"😤 {user_list} tried to wish but it wasn't at {config.WISH_TIME}..."
+        # For multiple users, adapt the message
+        users_text = "you all" if len(shamer_mentions) > 2 else "you both"
+        shame_message = reaction["message"].replace("{user}", users_text)
+    
+    full_message = f"{base_message} {shame_message}"
+    
+    # Create embed with GIF (same as shame reactions)
+    embed = discord.Embed(
+        description=full_message,
+        color=0xFF0000,  # Red color for shame
+        timestamp=datetime.now()
+    )
+    embed.set_image(url=reaction["gif_url"])
+    
+    await channel.send(embed=embed)
+    print(f"{server_tag} 📋 Sent shame summary for {len(shamer_mentions)} users")
 
 async def wait_until_shame_time():
     """Wait until the next shame time (22:22 London time)"""
@@ -110,33 +90,33 @@ async def shame_summary_task(bot):
         for guild in bot.guilds:
             server_tag = get_server_tag(guild)
             
-            try:
-                # Find a suitable channel to send the summary
-                # Priority: general, random, or first text channel
-                target_channel = None
-                
-                for channel in guild.text_channels:
-                    if channel.name.lower() in ['general', 'random', 'chat']:
-                        target_channel = channel
-                        break
-                
-                if not target_channel:
-                    # Use the first text channel the bot can send messages to
-                    for channel in guild.text_channels:
-                        if channel.permissions_for(guild.me).send_messages:
-                            target_channel = channel
-                            break
-                
-                if target_channel:
-                    await send_shame_summary(guild, target_channel)
-                else:
-                    print(f"{server_tag} ❌ No suitable channel found for shame summary")
-                    
-            except Exception as e:
-                print(f"{server_tag} ❌ Error sending shame summary: {e}")
+            # Get configured channel for this guild
+            channel_name = get_shame_summary_channel_name(guild.id)
+            target_channel = discord.utils.get(guild.text_channels, name=channel_name)
+            
+            if target_channel:
+                await send_shame_summary(guild, target_channel)
+            else:
+                print(f"{server_tag} ❌ Channel '{channel_name}' not found for shame summary")
         
         print(f"🔔 Completed daily shame summaries")
 
 def start_shame_summary_task(bot):
     """Start the background shame summary task"""
-    return asyncio.create_task(shame_summary_task(bot)) 
+    global current_shame_task
+    current_shame_task = asyncio.create_task(shame_summary_task(bot))
+    return current_shame_task
+
+def restart_shame_summary_task(bot):
+    """Restart the shame summary task (used when shame time changes)"""
+    global current_shame_task
+    
+    # Cancel the old task
+    if current_shame_task and not current_shame_task.done():
+        current_shame_task.cancel()
+        print(f"🔄 Cancelled old shame summary task")
+    
+    # Start new task
+    current_shame_task = asyncio.create_task(shame_summary_task(bot))
+    print(f"🔄 Started new shame summary task for {config.SHAME_TIME}")
+    return current_shame_task 

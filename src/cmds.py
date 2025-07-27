@@ -21,7 +21,7 @@ async def handle_bot_mention(message, server_tag, guild_id, bot):
     if len(parts) >= 3 and parts[0] == "set" and parts[1] == "wishtime":
         await set_wish_time(message, parts[2], server_tag)
     elif len(parts) >= 3 and parts[0] == "set" and parts[1] == "shametime":
-        await set_shame_time(message, parts[2], server_tag)
+        await set_shame_time(message, parts[2], server_tag, bot)
     elif len(parts) >= 3 and parts[0] == "set" and parts[1] == "buffer":
         await set_buffer_time(message, parts[2], server_tag)
     elif len(parts) >= 3 and parts[0] == "set" and parts[1] == "summarydelay":
@@ -42,14 +42,19 @@ async def set_wish_time(message, new_time, server_tag):
     else:
         await message.channel.send(f"❌ Invalid time format! Please use HH:MM format (e.g., 11:11)")
 
-async def set_shame_time(message, new_time, server_tag):
+async def set_shame_time(message, new_time, server_tag, bot):
     """Set the shame time with basic validation"""
     # Basic validation - just check if it's HH:MM format
     if len(new_time) == 5 and new_time[2] == ':':
         old_time = config.SHAME_TIME
         config.SHAME_TIME = new_time
         print(f"{server_tag} 🔔 Shame time changed from {old_time} to {config.SHAME_TIME} by {message.author.name}")
-        await message.channel.send(f"✅ Shame summary time updated to **{config.SHAME_TIME}**! 🔔")
+        
+        # Restart the shame summary task with new time
+        from .shame_summary import restart_shame_summary_task
+        restart_shame_summary_task(bot)
+        
+        await message.channel.send(f"✅ Shame summary time updated to **{config.SHAME_TIME}**! 🔔\n⏰ Restarted background task for new time.")
     else:
         await message.channel.send(f"❌ Invalid time format! Please use HH:MM format (e.g., 22:22)")
 
