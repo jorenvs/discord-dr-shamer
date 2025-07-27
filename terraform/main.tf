@@ -39,6 +39,21 @@ resource "google_project_service" "artifact_registry" {
   service = "artifactregistry.googleapis.com"
 }
 
+resource "google_project_service" "firestore" {
+  project = var.project_id
+  service = "firestore.googleapis.com"
+}
+
+# Create Firestore database
+resource "google_firestore_database" "database" {
+  project     = var.project_id
+  name        = "(default)"
+  location_id = var.region
+  type        = "FIRESTORE_NATIVE"
+  
+  depends_on = [google_project_service.firestore]
+}
+
 # Create Artifact Registry repository
 resource "google_artifact_registry_repository" "discord_bot" {
   location      = var.region

@@ -84,6 +84,7 @@ async def send_wish_summary(guild_id, channel):
         try:
             await send_wish_reaction(channel, users)
             print(f"{server_tag} 📋 Sent wish summary for {len(users)} users")
+            
         except Exception as e:
             print(f"{server_tag} ❌ Failed to send wish summary: {e}")
     

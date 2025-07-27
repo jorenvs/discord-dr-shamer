@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 import threading
+import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import os
 from dotenv import load_dotenv
@@ -12,10 +13,11 @@ if os.path.exists('.env'):
 
 from .config import config, LONDON_TZ
 from .utils import *
-from .utils import WrongTimeException
+from .utils import WrongTimeException, assign_shame_role
 from .cmds import handle_bot_mention
-from .shame_reactions import send_shame_message
 from .wish_reactions import track_successful_wish
+from .firestore_db import init_firestore, record_user
+from .shame_summary import start_shame_summary_task
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -29,6 +31,12 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def on_ready():
     print(f'✅ Dr. Shamer is online as {bot.user}')
     print(f'✅ Connected to {len(bot.guilds)} servers: {", ".join([guild.name for guild in bot.guilds])}')
+    
+    # Initialize Firestore
+    init_firestore()
+    
+    # Start the daily shame summary background task
+    start_shame_summary_task(bot)
 
 @bot.event
 async def on_message(message):
@@ -69,7 +77,10 @@ async def on_message(message):
                     print(f"{server_tag} 🎯 Detected wish message at {london_time.strftime('%H:%M')}: {message.id}")
                     print(f"{server_tag} 📝 Message: '{message.content}'")
                     
-                    # Track successful wish (will clear any previous tracking automatically)
+                    # Record successful wish to Firestore (async, no await - arrayUnion handles duplicates)
+                    asyncio.create_task(record_user(guild_id, message.author.id, on_time=True))
+                    
+                    # Track successful wish for summary message (still needed for in-memory summary)
                     track_successful_wish(message.guild, message.author, message.channel)
                     
                     # Remove shame roles from all users for fresh start (do this last as it's slow)
@@ -79,18 +90,16 @@ async def on_message(message):
                     if is_debug_mode(guild_id):
                         await message.channel.send(f"🐛 **DEBUG:** {message.author.mention} successfully created a wish at {london_time.strftime('%H:%M')}! 🌠")
                 else:
-                    print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - shaming user!")
-                    # Shame the user for making a wish at the wrong time
-                    role_assigned = await assign_shame_role(message.guild, message.author, bot)
-                    if role_assigned:
-                        await send_shame_message(message.channel, message.author.mention, london_time.strftime('%H:%M'), config.WISH_TIME)
+                    print(f"{server_tag} ⏰ Wish attempted at {london_time.strftime('%H:%M')} but not {config.WISH_TIME} - assigning shame role and recording")
+                    # Fire off both shame role assignment and Firestore recording as background tasks
+                    asyncio.create_task(assign_shame_role(message.guild, message.author, bot))
+                    asyncio.create_task(record_user(guild_id, message.author.id, on_time=False))
         
         except WrongTimeException as e:
-            print(f"{server_tag} ⏰ Wrong time in wish message: {e.used_time} instead of {config.WISH_TIME} - shaming user!")
-            # Shame the user for mentioning wrong time in wish
-            role_assigned = await assign_shame_role(message.guild, message.author, bot)
-            if role_assigned:
-                await send_shame_message(message.channel, message.author.mention, e.used_time, config.WISH_TIME, reaction_type="wrong_time")
+            print(f"{server_tag} ⏰ Wrong time in wish message: {e.used_time} instead of {config.WISH_TIME} - assigning shame role and recording")
+            # Fire off both shame role assignment and Firestore recording as background tasks
+            asyncio.create_task(assign_shame_role(message.guild, message.author, bot))
+            asyncio.create_task(record_user(guild_id, message.author.id, on_time=False))
 
     await bot.process_commands(message)
 
@@ -104,6 +113,7 @@ async def on_reaction_add(reaction, user):
         return
 
     server_tag = get_server_tag(reaction.message.guild)
+    guild_id = reaction.message.guild.id
     
     # Check if this is a 🌠 reaction to a wish message (with fast precheck)
     if str(reaction.emoji) != "🌠":
@@ -130,17 +140,20 @@ async def on_reaction_add(reaction, user):
     if is_correct_time:
         print(f"{server_tag} 🌟 {user.name} made a wish on time at {london_time.strftime('%H:%M')}!")
         
-        # Track successful wish
+        # Record successful wish to Firestore (async, no await - arrayUnion handles duplicates)
+        asyncio.create_task(record_user(guild_id, user.id, on_time=True))
+        
+        # Track successful wish for summary message (still needed for in-memory summary)
         track_successful_wish(reaction.message.guild, user, reaction.message.channel)
         
         # Debug message for successful wish reaction
-        if is_debug_mode(reaction.message.guild.id):
+        if is_debug_mode(guild_id):
             await reaction.message.channel.send(f"🐛 **DEBUG:** {user.mention} successfully made a wish at {london_time.strftime('%H:%M')}! ✨")
     else:
-        print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... shame!")
-        role_assigned = await assign_shame_role(reaction.message.guild, user, bot)
-        if role_assigned:
-            await send_shame_message(reaction.message.channel, user.mention, london_time.strftime('%H:%M'), config.WISH_TIME, reaction_type="reaction")
+        print(f"{server_tag} 😤 {user.name} tried to make a wish at {london_time.strftime('%H:%M')} but it wasn't at {config.WISH_TIME}... assigning shame role and recording")
+        # Fire off both shame role assignment and Firestore recording as background tasks
+        asyncio.create_task(assign_shame_role(reaction.message.guild, user, bot))
+        asyncio.create_task(record_user(guild_id, user.id, on_time=False))
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):

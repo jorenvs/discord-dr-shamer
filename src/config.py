@@ -5,6 +5,9 @@ class Config:
         # Configuration - Wish time (24-hour format HH:MM)
         self.WISH_TIME = "11:11"
         
+        # Configuration - Shame time (24-hour format HH:MM)
+        self.SHAME_TIME = "22:22"
+        
         # Configuration - Buffer time in seconds (added to 60s wish minute)
         self.WISH_BUFFER_TIME = 15
         
@@ -38,5 +41,13 @@ DEBUG_MODE_CONFIG = {
     168316445569056768: False,  # London server - no debug
     1390289538613772400: True,  # JJ's test server - debug on
     1343509963812769832: True,  # The Post Office - debug on
+    # Add more servers as needed - default to True for new servers
+}
+
+# Configuration - Shame summary enable/disable per server
+SHAME_SUMMARY_CONFIG = {
+    168316445569056768: False,  # London server - disabled by default
+    1390289538613772400: True,  # JJ's test server - enabled
+    1343509963812769832: True,  # The Post Office - enabled
     # Add more servers as needed - default to True for new servers
 } 

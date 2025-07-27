@@ -43,6 +43,7 @@ resource "google_cloud_run_service" "discord_bot" {
   
   depends_on = [
     google_project_service.cloud_run,
+    google_firestore_database.database,
     google_artifact_registry_repository.discord_bot
   ]
 }

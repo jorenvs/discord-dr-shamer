@@ -1,7 +1,7 @@
 import asyncio
 import re
 from datetime import datetime
-from .config import config, LONDON_TZ, SHAME_ROLE_CONFIG, DEV_CHANNEL_CONFIG, DEBUG_MODE_CONFIG
+from .config import config, LONDON_TZ, SHAME_ROLE_CONFIG, DEV_CHANNEL_CONFIG, DEBUG_MODE_CONFIG, SHAME_SUMMARY_CONFIG
 
 class WrongTimeException(Exception):
     def __init__(self, used_time):
@@ -22,6 +22,10 @@ def get_server_tag(guild):
 def is_debug_mode(guild_id):
     """Check if debug mode is enabled for a server"""
     return DEBUG_MODE_CONFIG.get(guild_id, True)  # Default to True for new servers
+
+def is_shame_summary_enabled(guild_id):
+    """Check if shame summary is enabled for a server"""
+    return SHAME_SUMMARY_CONFIG.get(guild_id, True)  # Default to True for new servers
 
 def get_dev_channel_name(guild_id):
     """Get the appropriate dev channel name for a server"""
@@ -107,7 +111,7 @@ async def assign_shame_role(guild, user, bot):
         
         # Check if user already has the shame role
         if role in user.roles:
-            print(f"{server_tag} ⏭️ {user.name} already has the '{role.name}' role - skipping shame reaction")
+            print(f"{server_tag} ⏭️ {user.name} already has the '{role.name}' role - skipping role assignment")
             return False
         
         # Check bot permissions before attempting to add role
