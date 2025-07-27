@@ -51,10 +51,11 @@ async def on_message(message):
         return
 
     # Deduplicate messages (Discord sometimes sends duplicates)
+    global recent_messages
     message_key = f"{message.id}_{message.guild.id}"
     if message_key in recent_messages:
         return
-    recent_messages.add(message_key)
+    recent_messages.append(message_key)
     
     # Clean up old message IDs (keep only last 100)
     recent_messages = recent_messages[-100:]
