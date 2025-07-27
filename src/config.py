@@ -46,7 +46,7 @@ DEBUG_MODE_CONFIG = {
 
 # Configuration - Shame summary enable/disable per server
 SHAME_SUMMARY_CONFIG = {
-    168316445569056768: False,  # London server - disabled by default
+    168316445569056768: True,  # London server - disabled by default
     1390289538613772400: True,  # JJ's test server - enabled
     1343509963812769832: True,  # The Post Office - enabled
     # Add more servers as needed - default to True for new servers
