@@ -63,19 +63,31 @@ def get_day_log(guild_id, date_str=None):
 
 def get_daily_wishers(guild_id, date_str=None):
     """Get list of users who wished on time for a specific day"""
-    log = get_day_log(guild_id, date_str)
-    return log.get("wished", [])
+    try:
+        log = get_day_log(guild_id, date_str)
+        return log.get("wished", [])
+    except Exception as e:
+        print(f"❌ Failed to get daily wishers for guild {guild_id}: {e}")
+        return []
 
 def get_daily_shamers(guild_id, date_str=None):
     """Get list of users who were shamed for a specific day"""
-    log = get_day_log(guild_id, date_str)
-    return log.get("shamed", [])
+    try:
+        log = get_day_log(guild_id, date_str)
+        return log.get("shamed", [])
+    except Exception as e:
+        print(f"❌ Failed to get daily shamers for guild {guild_id}: {e}")
+        return []
 
 def user_already_recorded_today(guild_id, user_id, field_type="wished"):
     """Check if user is already recorded for today"""
-    today_log = get_day_log(guild_id)
-    field = "wished" if field_type == "wished" else "shamed"
-    return str(user_id) in today_log.get(field, [])
+    try:
+        today_log = get_day_log(guild_id)
+        field = "wished" if field_type == "wished" else "shamed"
+        return str(user_id) in today_log.get(field, [])
+    except Exception as e:
+        print(f"❌ Failed to check if user {user_id} already recorded: {e}")
+        return False
 
 def get_leaderboard(guild_id):
     """Generate leaderboard for a specific guild"""
@@ -87,10 +99,19 @@ def get_leaderboard(guild_id):
         shamed_counter = {}
         
         # Get all daily documents for this guild
-        docs = get_guild_log(guild_id).stream()
+        guild_collection = get_guild_log(guild_id)
+        if not guild_collection:
+            return {"top_wishers": [], "top_shamers": []}
         
+        docs = guild_collection.stream()
+        
+        # Process documents (might be empty for new guilds)
+        doc_count = 0
         for doc in docs:
+            doc_count += 1
             data = doc.to_dict()
+            if not data:  # Skip empty documents
+                continue
             
             # Count wishes
             for user in data.get("wished", []):
@@ -100,10 +121,12 @@ def get_leaderboard(guild_id):
             for user in data.get("shamed", []):
                 shamed_counter[user] = shamed_counter.get(user, 0) + 1
         
+        print(f"📊 Processed {doc_count} documents for guild {guild_id} leaderboard")
+        
         return {
             "top_wishers": sorted(wished_counter.items(), key=lambda x: x[1], reverse=True),
             "top_shamers": sorted(shamed_counter.items(), key=lambda x: x[1], reverse=True)
         }
     except Exception as e:
-        print(f"❌ Failed to generate leaderboard: {e}")
+        print(f"❌ Failed to generate leaderboard for guild {guild_id}: {e}")
         return {"top_wishers": [], "top_shamers": []} 
