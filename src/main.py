@@ -27,6 +27,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Track recently processed messages to avoid duplicates
+recent_messages = []
+
 @bot.event
 async def on_ready():
     print(f'✅ Dr. Shamer is online as {bot.user}')
@@ -46,6 +49,15 @@ async def on_message(message):
     # Skip messages not from a guild
     if not message.guild:
         return
+
+    # Deduplicate messages (Discord sometimes sends duplicates)
+    message_key = f"{message.id}_{message.guild.id}"
+    if message_key in recent_messages:
+        return
+    recent_messages.add(message_key)
+    
+    # Clean up old message IDs (keep only last 100)
+    recent_messages = recent_messages[-100:]
 
     server_tag = get_server_tag(message.guild)
     guild_id = message.guild.id
